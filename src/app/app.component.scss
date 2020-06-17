@@ -1,0 +1,21 @@
+.mat-stepper-horizontal {
+  margin-top: 8px;
+}
+
+.mat-form-field {
+  margin-top: 16px;
+}
+table {
+  width: 100%;
+}
+
+table.mat-table td.mat-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 100px;
+  max-width: 100px;
+}
+.mat-card {
+  overflow: scroll;
+}
