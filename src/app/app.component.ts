@@ -1,13 +1,8 @@
-import { Component, OnInit, ViewChild} from '@angular/core';
+import { Component, OnInit, Inject} from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import { FileValidator } from 'ngx-material-file-input';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatTableDataSource } from '@angular/material/table';
-import * as lod from 'lodash';
 import { AppService } from './app.service';
-
-
+import {MatDialog, MatDialogRef, MAT_DIALOG_DATA} from '@angular/material/dialog';
 
 @Component({
   selector: 'app-root',
@@ -18,69 +13,64 @@ import { AppService } from './app.service';
 export class AppComponent implements OnInit {
   formGroup: FormGroup;
   excelFile;
-  tableData =[];
+
   readonly maxSize = 104857600;
-  @ViewChild('paginator', { static: true }) paginator: MatPaginator;
+  showForm: boolean = true;
+  showSpinner: boolean = false;
 
-  displayedColumns: string[] = ['CW2',
-    'Calendar_Week',
-  'Date',
-  'Decription_of_Resolution',
-  'Description_of_Error',
- ' Error_Code_and_Message_Displayed',
-  'Error_on_HMI',
-  'NOTE',
-  'PentaMaster_Root_Cause_Analysis',
- ' Responder',
-  'Shift',
-  'Source_of_Downtime',
-  'Station',
-  'Time_Resolved',
-  'Time_of_Issue',
-  'Total_DT',
-  'Vision_Related'];
-  dataSource = new MatTableDataSource<any>();
-
-  constructor(private _formBuilder: FormBuilder, private appService: AppService) { }
+  constructor(private _formBuilder: FormBuilder, private appService: AppService, public dialog: MatDialog) { }
 
   ngOnInit() {
     this.formGroup = this._formBuilder.group({
       requiredFile: [
         undefined,
-        [Validators.required, FileValidator.maxContentSize(this.maxSize)]
+        [FileValidator.maxContentSize(this.maxSize)]
       ]
     });
-
   }
   selectedFile() {
-    this.excelFile = this.formGroup.controls.requiredFile.value._files[0];
-    if (this.excelFile) {
+    if (this.formGroup.controls.requiredFile.value) {
+      this.showSpinner = true;
+      this.showForm = false;
+      this.excelFile = this.formGroup.controls.requiredFile.value._files[0];
       this.appService.convertFile(this.excelFile).then((res: any) => {
-        this.tableData = res;
-        this.dataSource.data = this.tableData;
-        this.dataSource.paginator = this.paginator;
+        this.appService.saveWorkorderLoad(res).subscribe(res => {
+          this.showSpinner = false;
+          this.openDialog(res.json().Message);
+        });
       });
+    } else {
+      this.formGroup.controls.requiredFile.setErrors({ required: true })
     }
-
   }
+  openDialog(message): void {
+    const dialogRef = this.dialog.open(ConfirmationDialog, {
+      width: '250px',
+      data: message
+    });
 
+    dialogRef.afterClosed().subscribe(result => {
+      this.formGroup.reset();
+      this.showForm = true;
+    });
+  }
 }
-export interface fileData {
-  CW2: string;
-  Calendar_Week: string;
-  Date: string;
-  Decription_of_Resolution: string;
-  Description_of_Error: string;
-  Error_Code_and_Message_Displayed: string;
-  Error_on_HMI: string;
-  NOTE: string;
-  PentaMaster_Root_Cause_Analysis: string;
-  Responder: string;
-  Shift: string;
-  Source_of_Downtime: string;
-  Station: string;
-  Time_Resolved: string;
-  Time_of_Issue: string;
-  Total_DT: string;
-  Vision_Related: string;
-  }
+
+@Component({
+  selector: 'confirmation-dialog',
+  templateUrl: 'confirmation.html',
+})
+export class ConfirmationDialog {
+  message: string;
+  constructor(
+    public dialogRef: MatDialogRef<ConfirmationDialog>,
+    @Inject(MAT_DIALOG_DATA) public data: any) {
+    if (data == "Success") {
+      this.message = "Excel sheet imported Successfully."
+    } else if (data == 'Failed') {
+      this.message = "Error occured.Please try again later."
+    } else {
+      this.message = data;
+    }
+    }
+}
